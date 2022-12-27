@@ -1,0 +1,199 @@
+﻿@page "/computerOrders"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@using BlazorApp2.Shared
+@using BlazorApp2.Shared.Models
+@using BlazorApp2.Shared.ViewModels
+@using System.Linq
+@inject HttpClient Http
+<div class="container">
+    <h2>Orders</h2>
+    <form name="orderForm">
+        <table class="table" border="0">
+            <tr>
+                <td colspan="3">
+                    <label for="computerOrderId" id="CRUD" name="CRUD">Orders</label>
+                    <input type="hidden" id="computerOrderId" name="computerOrderId" @bind="@order.ComputerOrderId" />
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <div class="form-group">
+                        <label Add>Employees:</label>
+                        <select @ref="saveComputerOrder" id="employeeId" name="employeeId" @bind="@order.EmployeeId">
+                            <option value=0 selected>(choose)</option>
+                            @if (employees == null)
+                            {
+
+                            }
+                            else
+                                @foreach (var employee in employees)
+                                {
+                                    <option value="@employee.EmployeeId">@employee.Name</option>
+                                }
+                        </select>
+                    </div>
+                </td>
+                <td>
+                    <div class="form-group">
+                        <label for="customerName">Customers:</label>
+                        <select id="customerId" name="customerId" @bind="@order.CustomerId">
+                            <option value=0 selected>(choose)</option>
+                            @if (customers == null)
+                            {
+
+                            }
+                            else
+                                @foreach (var customer in customers)
+                                {
+                                    <option value="@customer.CustomerId">@customer.Name </option>
+                                }
+                        </select>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="2">
+                    <div class="form-group">
+                        <label for="prepayment">Prepayment:</label>
+                        <input class="form-control" name="prepayment" id="prepayment" @bind="@order.Prepayment" />
+                    </div>
+                    <div class="form-group">
+                        <label for="orderDate">Order date:</label>
+                        <input class="form-control" name="orderDate" id="orderDate" @bind="order.OrderDate" @bind:format="dd-MM-yyyy" />
+                    </div>
+                    <div class="form-group">
+                        <label for="executionDate">Execution date:</label>
+                        <input class="form-control" name="executionDate" id="executionDate" @bind="order.ExecutionDate" @bind:format="dd-MM-yyyy" />
+                    </div>
+                    <div class="form-group">
+                        <label for="allCost">Full cost:</label>
+                        <input class="form-control" name="allcost" id="allcost" @bind="@order.AllCost" />
+                    </div>
+                    <div class="form-group">
+                        <label for="workMark">Mark:</label>
+                        <input class="form-control" name="workMark" id="workMark" @bind="@order.WorkMark" />
+                    </div>
+                    <div class="form-group">
+                        <label for="guaranteePeriod">GuaranteePeriod:</label>
+                        <input class="form-control" name="guaranteePeriod" id="guaranteePeriod" @bind="@order.GuaranteePeriod" />
+                    </div>
+                    <div class="panel-body">
+                        <a class="btn btn-sm btn-primary" @onclick="SaveComputerOrder">Save</a>
+                        <a id="reset" class="btn btn-sm btn-primary" @onclick="Reset">Reset</a>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </form>
+</div>
+@if (computerOrderViewModels == null)
+{
+    <p><em>Please, stand by...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Код</th>
+                <th>Имя клиента</th>
+                <th>Имя работника</th>
+                <th>Полная цена</th>
+                <th>Дата заказа</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var computerOrder in computerOrderViewModels)
+            {
+                <tr>
+                    <td>@computerOrder.ComputerOrderId</td>
+                    <td>@computerOrder.CustomerName</td>
+                    <td>@computerOrder.EmployeeName</td>
+                    <td>@computerOrder.AllCost</td>
+                    <td>@computerOrder.OrderDate.ToShortDateString()</td>
+                    <td>
+                        <a class='editLink' @onclick="@(e => GetComputerOrder(computerOrder.ComputerOrderId))">Select</a> |
+                        <a class='removeLink' @onclick="@(e => DeleteComputerOrder(computerOrder.ComputerOrderId))">Remove</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<ComputerOrderViewModel> computerOrderViewModels;
+    private List<ComputerOrderViewModel> allComputerOrderViewModels;
+    private ComputerOrderViewModel order = new ComputerOrderViewModel();
+    private List<Employee> employees;
+    private List<Customer> customers;
+    private ElementReference saveComputerOrder;
+
+    protected override async Task OnInitializedAsync()
+    {
+        allComputerOrderViewModels = await Http.GetFromJsonAsync<List<ComputerOrderViewModel>>("api/computerOrders");
+        employees = await Http.GetFromJsonAsync<List<Employee>>("/api/computerOrders/employees");
+        customers = await Http.GetFromJsonAsync<List<Customer>>("/api/computerOrders/customers");
+        computerOrderViewModels = allComputerOrderViewModels;
+
+    }
+
+    private async Task GetComputerOrder(int orderId)
+    {
+        ComputerOrderViewModel computerOrderViewModel = computerOrderViewModels.FirstOrDefault(i => i.ComputerOrderId == orderId);
+        order = computerOrderViewModel;
+        await saveComputerOrder.FocusAsync();
+    }
+
+    private async Task DeleteComputerOrder(int orderId)
+    {
+        ComputerOrderViewModel computerOrder = computerOrderViewModels.FirstOrDefault(o => o.ComputerOrderId == orderId);
+        computerOrderViewModels.Remove(computerOrder);
+        var code = await Http.DeleteAsync("api/computerOrders/" + orderId);
+        allComputerOrderViewModels.Remove(computerOrder);
+    }
+
+    private async Task SaveComputerOrder()
+    {
+        if (order.ComputerOrderId > 0)
+        {
+            ComputerOrderViewModel computerOrder = computerOrderViewModels.FirstOrDefault(o => o.ComputerOrderId == order.ComputerOrderId);
+            computerOrder = order;
+            ComputerOrder newOrder = new ComputerOrder
+            {
+                ComputerOrderId = order.ComputerOrderId,
+                AllCost = order.AllCost,
+                CustomerId = order.CustomerId,
+                EmployeeId = order.EmployeeId,
+                OrderDate = order.OrderDate,
+                Prepayment = order.Prepayment,
+                WorkMark = order.WorkMark,
+                ExecutionDate = order.ExecutionDate,
+                Customer = order.Customer,
+                Employee = order.Employee
+            };
+            var code = await Http.PutAsJsonAsync("api/computerOrders/", order);
+        }
+        if (order.ComputerOrderId == 0)
+        {
+            ComputerOrderViewModel computerOrder = order;
+            var code = await Http.PostAsJsonAsync("api/computerOrders/", order);
+            allComputerOrderViewModels = await Http.GetFromJsonAsync<List<ComputerOrderViewModel>>("api/computerOrders");
+            computerOrderViewModels = allComputerOrderViewModels;
+        }
+    }
+
+    private async Task Reset()
+    {
+        order = new ComputerOrderViewModel();
+        allComputerOrderViewModels = await Http.GetFromJsonAsync<List<ComputerOrderViewModel>>("api/computerOrders");
+        computerOrderViewModels = allComputerOrderViewModels;
+    }
+
+    private bool CheckOperation()
+    {
+        if (order.EmployeeId > 0 & order.CustomerId > 0) return true;
+        else return false;
+    }
+}
